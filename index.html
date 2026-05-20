@@ -271,7 +271,7 @@
 
   <div class="settings-section">
     <div class="settings-title">Reminder times</div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Set up to 4 reminders per day. Times trigger check-in reminders. Add an end-of-day time and label it accordingly in your own convention.</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Set up to 4 check-in reminders per day. The End of Day reminder is always shown separately and cannot be removed.</div>
     <div id="day-rows"></div>
     <button class="export-btn" onclick="saveSettings()" style="margin-top:12px;background:var(--accent);border-color:var(--accent);color:#fff">Save reminder settings</button>
   </div>
@@ -295,7 +295,10 @@ let selectedOverall = 5;
 let db = JSON.parse(localStorage.getItem('tracker_data') || '[]');
 let settings = JSON.parse(localStorage.getItem('tracker_settings') || 'null');
 if (!settings) {
-  settings = { days: DAYS.map(d => ({ name: d, times: ['12:00','15:00','18:00','22:00'] })) };
+  settings = { days: DAYS.map(d => ({ name: d, times: ['12:00','15:00','18:00','22:00'], eodTime: '23:45' })) };
+} else {
+  // Migrate older settings that lack eodTime
+  settings.days.forEach(d => { if (!d.eodTime) d.eodTime = '23:45'; });
 }
 let notifTimers = [];
 
@@ -538,6 +541,11 @@ function renderSlots(di) {
     row.innerHTML = `<input type="time" value="${t}" onchange="settings.days[${di}].times[${ti}]=this.value"><button class="del-time-btn" onclick="removeTime(${di},${ti})" title="Remove">×</button>`;
     wrap.appendChild(row);
   });
+  // EOD row — always present, undeletable
+  const eodRow = document.createElement('div');
+  eodRow.className = 'time-row';
+  eodRow.innerHTML = `<input type="time" value="${settings.days[di].eodTime}" onchange="settings.days[${di}].eodTime=this.value" style="border-color:var(--accent2)"><span style="font-size:12px;color:var(--accent2);white-space:nowrap">End of Day</span>`;
+  wrap.appendChild(eodRow);
 }
 
 function addTime(di) {
@@ -553,52 +561,7 @@ function removeTime(di, ti) {
 
 function saveSettings() {
   localStorage.setItem('tracker_settings', JSON.stringify(settings));
-  function insertMissedCheckins() {
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0,10);
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const todayJS = now.getDay();
-  const todayIdx = todayJS === 0 ? 6 : todayJS - 1;
-  const times = settings.days[todayIdx].times;
-  const total = times.length;
-
-  // Find which slots have already passed today
-  const passedSlots = times.map((t, i) => {
-    const [h, m] = t.split(':').map(Number);
-    return { index: i + 1, h, m, passed: nowMins > h * 60 + m + 5 };
-  }).filter(s => s.passed);
-
-  // Find which intervals already have a real checkin today
-  const todayCheckins = new Set(
-    db.filter(e => e.type === 'checkin' && e.ts.slice(0,10) === todayStr && e.interval)
-      .map(e => e.interval)
-  );
-  // Also find already-inserted missed entries today (avoid duplicates)
-  const todayMissed = new Set(
-    db.filter(e => e.type === 'missed' && e.ts.slice(0,10) === todayStr && e.interval)
-      .map(e => e.interval)
-  );
-
-  let added = 0;
-  passedSlots.forEach(slot => {
-    if (!todayCheckins.has(slot.index) && !todayMissed.has(slot.index)) {
-      const slotDate = new Date(now);
-      slotDate.setHours(slot.h, slot.m, 0, 0);
-      db.push({
-        type: 'missed',
-        ts: slotDate.toISOString(),
-        interval: slot.index,
-        intervalTotal: total
-      });
-      added++;
-    }
-  });
-
-  if (added > 0) localStorage.setItem('tracker_data', JSON.stringify(db));
-}
-
-insertMissedCheckins();
-scheduleNotifications();
+  scheduleNotifications();
   showToast('Settings saved ✓');
 }
 
@@ -622,8 +585,8 @@ function scheduleNotifications() {
   notifTimers = [];
   if (Notification.permission !== 'granted') return;
   const now = new Date();
-  const todayJS = now.getDay(); // 0=Sun
-  const todayIdx = todayJS === 0 ? 6 : todayJS - 1; // 0=Mon
+  const todayJS = now.getDay();
+  const todayIdx = todayJS === 0 ? 6 : todayJS - 1;
   const day = settings.days[todayIdx];
   day.times.forEach(timeStr => {
     const [h, m] = timeStr.split(':').map(Number);
@@ -637,6 +600,17 @@ function scheduleNotifications() {
       notifTimers.push(t);
     }
   });
+  // EOD notification
+  const [eh, em] = day.eodTime.split(':').map(Number);
+  const eodTarget = new Date(now);
+  eodTarget.setHours(eh, em, 0, 0);
+  const eodDiff = eodTarget - now;
+  if (eodDiff > 0) {
+    const t = setTimeout(() => {
+      new Notification('Daily Tracker', { body: 'Time to complete your end-of-day summary!', icon: '' });
+    }, eodDiff);
+    notifTimers.push(t);
+  }
 }
 
 scheduleNotifications();
