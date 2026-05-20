@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily Tracker">
+<title>Daily Tracker</title>
+<style>
+  :root {
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #252540;
+    --surface3: #2e2e50;
+    --accent: #7c6fe0;
+    --accent2: #5a9fd4;
+    --text: #e8e6f0;
+    --text2: #9994b8;
+    --text3: #6a6690;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --green: #4caf82;
+    --amber: #f0a030;
+    --red: #e05a5a;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  /* Nav */
+  .nav { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; height: 56px; gap: 4px; }
+  .nav-title { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; flex: 1; color: var(--text); }
+  .nav-btn { background: none; border: none; color: var(--text2); padding: 8px; border-radius: var(--radius-sm); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; }
+  .nav-btn:hover, .nav-btn.active { background: var(--surface2); color: var(--text); }
+
+  /* Tabs */
+  .tabs { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .tab { flex: 1; padding: 12px 8px; text-align: center; font-size: 13px; font-weight: 500; color: var(--text3); border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Pages */
+  .page { display: none; padding: 16px; max-width: 600px; margin: 0 auto; padding-bottom: 80px; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text3); margin-bottom: 12px; }
+
+  /* Section label */
+  .section-label { font-size: 13px; color: var(--text2); margin: 20px 0 8px; font-weight: 500; }
+
+  /* Metric row */
+  .metric { margin-bottom: 20px; }
+  .metric-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .metric-name { font-size: 15px; font-weight: 500; color: var(--text); }
+  .metric-desc { font-size: 12px; color: var(--text3); margin-top: 2px; line-height: 1.4; }
+  .metric-value { font-size: 20px; font-weight: 600; color: var(--accent); min-width: 28px; text-align: right; }
+  .metric-value.na { color: var(--text3); font-size: 15px; }
+
+  /* Slider */
+  .slider-wrap { display: flex; gap: 10px; align-items: center; }
+  input[type=range] { flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px; background: var(--surface3); outline: none; cursor: pointer; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 0 0 3px rgba(124,111,224,0.3); cursor: pointer; }
+  .slider-labels { display: flex; justify-content: space-between; margin-top: 4px; }
+  .slider-label { font-size: 10px; color: var(--text3); }
+
+  /* NA toggle */
+  .na-btn { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); font-size: 12px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+  .na-btn.active { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
+
+  /* 0-10 scale for end of day */
+  .scale10 { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; margin-top: 8px; }
+  .scale10-btn { aspect-ratio: 1; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text3); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .scale10-btn.sel { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Submit btn */
+  .submit-btn { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: var(--radius); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.15s; }
+  .submit-btn:active { opacity: 0.8; }
+  .submit-btn.eod { background: var(--accent2); }
+
+  /* History list */
+  .entry { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 8px; }
+  .entry-time { font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+  .entry-type { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; padding: 2px 8px; border-radius: 20px; background: rgba(124,111,224,0.2); color: var(--accent); display: inline-block; margin-bottom: 8px; }
+  .entry-type.eod { background: rgba(90,159,212,0.2); color: var(--accent2); }
+  .entry-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; padding: 3px 8px; background: var(--surface2); border-radius: 20px; color: var(--text2); }
+  .chip span { color: var(--text); font-weight: 500; }
+
+  .entry-type.missed { background: rgba(224,90,90,0.15); color: var(--red); }
+
+  /* Settings */
+  .settings-section { margin-bottom: 20px; }
+  .settings-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px; }
+  .day-row { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 6px; }
+  .day-name { font-size: 14px; font-weight: 500; color: var(--text); min-width: 40px; }
+  .time-slots { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .time-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  input[type=time] { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 5px 8px; font-size: 13px; outline: none; }
+  input[type=time]:focus { border-color: var(--accent); }
+  .add-time-btn, .del-time-btn { background: none; border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text2); padding: 4px 8px; font-size: 18px; cursor: pointer; line-height: 1; }
+  .del-time-btn { font-size: 16px; color: var(--text3); }
+  .add-time-btn:hover { border-color: var(--green); color: var(--green); }
+  .del-time-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .notif-btn { width: 100%; padding: 12px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 8px; }
+  .notif-btn:active { opacity: 0.8; }
+  .notif-status { font-size: 13px; color: var(--text3); text-align: center; }
+  .notif-status.ok { color: var(--green); }
+  .notif-status.err { color: var(--red); }
+
+  /* Export */
+  .export-btn { width: 100%; padding: 14px; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .export-btn:active { opacity: 0.8; }
+  .export-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface3); color: var(--text); padding: 12px 20px; border-radius: var(--radius); font-size: 14px; font-weight: 500; transition: transform 0.3s; z-index: 999; white-space: nowrap; pointer-events: none; border: 1px solid var(--border2); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 24px; color: var(--text3); font-size: 14px; }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; width: 16px; height: 16px; border-radius: 50%; margin-left: 2px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="nav-title" id="nav-title">Daily Tracker</div>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('checkin')">Check-in</button>
+  <button class="tab" onclick="switchTab('eod')">End of Day</button>
+  <button class="tab" onclick="switchTab('history')">History</button>
+  <button class="tab" onclick="switchTab('settings')">Settings</button>
+</div>
+
+<!-- CHECK-IN PAGE -->
+<div class="page active" id="page-checkin">
+  <div class="card" style="margin-top:4px">
+    <div class="card-title">Interval check-in</div>
+    <div id="checkin-time" style="font-size:13px;color:var(--text3);margin-bottom:16px"></div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">1. Calm baseline</div><div class="metric-desc">Underlying emotional steadiness right now, regardless of surroundings.</div></div>
+        <div class="metric-value" id="v-calm">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="calm" oninput="updateVal('calm','v-calm')">
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — very low</span><span class="slider-label">3 — very high</span></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">2. Emotional control</div><div class="metric-desc">How well you can prevent irritation or impulsive reactions when triggered.</div></div>
+        <div class="metric-value" id="v-econtrol">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="econtrol" oninput="updateVal('econtrol','v-econtrol')">
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — none</span><span class="slider-label">3 — excellent</span></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">3. Near misses</div><div class="metric-desc">Times you felt close to snapping but held it together.</div></div>
+        <div class="metric-value" id="v-nearmiss">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="nearmiss" oninput="updateVal('nearmiss','v-nearmiss')">
+        <button class="na-btn" id="na-nearmiss" onclick="toggleNA('nearmiss')">N/A</button>
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — none</span><span class="slider-label">3 — many</span></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">4. Focus</div><div class="metric-desc">How well your attention stays on intended tasks, including returning after distraction.</div></div>
+        <div class="metric-value" id="v-focus">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="focus" oninput="updateVal('focus','v-focus')">
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — none</span><span class="slider-label">3 — excellent</span></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">5. Context load</div><div class="metric-desc">External demands, interruptions, or task switches being forced on you.</div></div>
+        <div class="metric-value" id="v-load">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="load" oninput="updateVal('load','v-load')">
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — minimal</span><span class="slider-label">3 — overwhelming</span></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">6. Medication feel</div><div class="metric-desc">How smooth, stable, and effective the medication feels right now.</div></div>
+        <div class="metric-value" id="v-med">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="med" oninput="updateVal('med','v-med')">
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — ineffective</span><span class="slider-label">3 — excellent</span></div>
+    </div>
+
+    <button class="submit-btn" onclick="submitCheckin()">Save check-in</button>
+  </div>
+</div>
+
+<!-- END OF DAY PAGE -->
+<div class="page" id="page-eod">
+  <div class="card" style="margin-top:4px">
+    <div class="card-title">End-of-day summary</div>
+    <div id="eod-time" style="font-size:13px;color:var(--text3);margin-bottom:16px"></div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">7. Worst emotional moment</div><div class="metric-desc">Most intense emotional dysregulation today, even if brief.</div></div>
+        <div class="metric-value" id="v-worst">1</div>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" min="0" max="3" step="1" value="1" id="worst" oninput="updateVal('worst','v-worst')">
+      </div>
+      <div class="slider-labels"><span class="slider-label">0 — none</span><span class="slider-label">3 — severe</span></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-header">
+        <div><div class="metric-name">8. Overall effectiveness</div><div class="metric-desc">Global judgment across parenting, work, calmness, and focus today.</div></div>
+        <div class="metric-value" id="v-overall" style="color:var(--accent2)">5</div>
+      </div>
+      <div class="scale10" id="scale10"></div>
+    </div>
+
+    <button class="submit-btn eod" onclick="submitEOD()">Save end of day</button>
+  </div>
+</div>
+
+<!-- HISTORY PAGE -->
+<div class="page" id="page-history">
+  <div style="display:flex;gap:8px;margin-bottom:12px;margin-top:4px">
+    <button class="export-btn" onclick="exportCSV()" style="flex:1">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Export CSV
+    </button>
+    <button class="export-btn" onclick="shareCSV()" style="flex:1">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+      Share CSV
+    </button>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- SETTINGS PAGE -->
+<div class="page" id="page-settings">
+  <div class="settings-section" style="margin-top:4px">
+    <div class="settings-title">Notifications</div>
+    <button class="notif-btn" onclick="requestNotifications()">Enable reminders</button>
+    <div class="notif-status" id="notif-status"></div>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">Reminder times</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:12px">Set up to 4 reminders per day. Times trigger check-in reminders. Add an end-of-day time and label it accordingly in your own convention.</div>
+    <div id="day-rows"></div>
+    <button class="export-btn" onclick="saveSettings()" style="margin-top:12px;background:var(--accent);border-color:var(--accent);color:#fff">Save reminder settings</button>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-title">Data management</div>
+    <button class="export-btn" onclick="clearData()" style="border-color:var(--red);color:var(--red)">
+      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      Clear all data
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const DAY_FULL = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+let naStates = { nearmiss: false };
+let selectedOverall = 5;
+let db = JSON.parse(localStorage.getItem('tracker_data') || '[]');
+let settings = JSON.parse(localStorage.getItem('tracker_settings') || 'null');
+if (!settings) {
+  settings = { days: DAYS.map(d => ({ name: d, times: ['12:00','15:00','18:00','22:00'] })) };
+}
+let notifTimers = [];
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['checkin','eod','history','settings'][i] === tab));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+tab).classList.add('active');
+  if (tab === 'history') renderHistory();
+  if (tab === 'settings') renderSettings();
+  updateTimes();
+}
+
+function getCurrentInterval() {
+  const now = new Date();
+  const todayJS = now.getDay();
+  const todayIdx = todayJS === 0 ? 6 : todayJS - 1;
+  const times = settings.days[todayIdx].times;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  let interval = 1;
+  for (let i = 0; i < times.length; i++) {
+    const [h, m] = times[i].split(':').map(Number);
+    if (nowMins >= h * 60 + m) interval = i + 1;
+  }
+  return { interval, total: times.length };
+}
+
+function updateTimes() {
+  const now = new Date();
+  const timeStr = now.toLocaleString('en-GB', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+  const { interval, total } = getCurrentInterval();
+  document.getElementById('checkin-time').innerHTML =
+    `<span style="color:var(--accent);font-weight:600">Check-in ${interval} of ${total}</span> &nbsp;&middot;&nbsp; Completed at ${timeStr}`;
+  document.getElementById('eod-time').textContent = timeStr;
+}
+updateTimes();
+
+function updateVal(id, valId) {
+  const v = document.getElementById(id).value;
+  const el = document.getElementById(valId);
+  el.textContent = v;
+  el.className = 'metric-value';
+}
+
+function toggleNA(id) {
+  naStates[id] = !naStates[id];
+  const btn = document.getElementById('na-'+id);
+  const slider = document.getElementById(id);
+  const val = document.getElementById('v-'+id);
+  btn.classList.toggle('active', naStates[id]);
+  slider.disabled = naStates[id];
+  slider.style.opacity = naStates[id] ? '0.3' : '1';
+  val.textContent = naStates[id] ? 'N/A' : slider.value;
+  val.className = naStates[id] ? 'metric-value na' : 'metric-value';
+}
+
+// Scale 10 init
+(function() {
+  const wrap = document.getElementById('scale10');
+  for (let i = 0; i <= 10; i++) {
+    const b = document.createElement('button');
+    b.className = 'scale10-btn' + (i === 5 ? ' sel' : '');
+    b.textContent = i;
+    b.onclick = () => {
+      selectedOverall = i;
+      document.querySelectorAll('.scale10-btn').forEach((x,j) => x.classList.toggle('sel', j === i));
+      document.getElementById('v-overall').textContent = i;
+    };
+    wrap.appendChild(b);
+  }
+})();
+
+function submitCheckin() {
+  const { interval, total } = getCurrentInterval();
+  const entry = {
+    type: 'checkin',
+    ts: new Date().toISOString(),
+    interval,
+    intervalTotal: total,
+    calm: +document.getElementById('calm').value,
+    econtrol: +document.getElementById('econtrol').value,
+    nearmiss: naStates.nearmiss ? 'N/A' : +document.getElementById('nearmiss').value,
+    focus: +document.getElementById('focus').value,
+    load: +document.getElementById('load').value,
+    med: +document.getElementById('med').value
+  };
+  db.push(entry);
+  localStorage.setItem('tracker_data', JSON.stringify(db));
+  showToast('Check-in saved ✓');
+  resetCheckin();
+}
+
+function resetCheckin() {
+  ['calm','econtrol','nearmiss','focus','load','med'].forEach(id => {
+    document.getElementById(id).value = 1;
+    const vi = id === 'econtrol' ? 'v-econtrol' : id === 'nearmiss' ? 'v-nearmiss' : 'v-'+id;
+    updateVal(id, vi);
+  });
+  if (naStates.nearmiss) toggleNA('nearmiss');
+}
+
+function submitEOD() {
+  const entry = {
+    type: 'eod',
+    ts: new Date().toISOString(),
+    worst: +document.getElementById('worst').value,
+    overall: selectedOverall
+  };
+  db.push(entry);
+  localStorage.setItem('tracker_data', JSON.stringify(db));
+  showToast('End of day saved ✓');
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (db.length === 0) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div>No entries yet. Start a check-in!</div>';
+    return;
+  }
+  const sorted = [...db].sort((a,b) => b.ts.localeCompare(a.ts));
+  list.innerHTML = sorted.map(e => {
+    const dt = new Date(e.ts);
+    const timeStr = dt.toLocaleString('en-GB', { weekday:'short', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+    if (e.type === 'missed') {
+      const intLabel = e.interval ? ` ${e.interval}/${e.intervalTotal}` : '';
+      return `<div class="entry">
+        <div class="entry-type missed">Missed${intLabel}</div>
+        <div class="entry-time">Scheduled ${timeStr}</div>
+      </div>`;
+    } else if (e.type === 'checkin') {
+      const nm = e.nearmiss === 'N/A' ? 'N/A' : e.nearmiss;
+      const intLabel = e.interval ? ` ${e.interval}/${e.intervalTotal}` : '';
+      return `<div class="entry">
+        <div class="entry-type">Check-in${intLabel}</div>
+        <div class="entry-time">${timeStr}</div>
+        <div class="entry-chips">
+          <div class="chip">Calm <span>${e.calm}</span></div>
+          <div class="chip">Control <span>${e.econtrol}</span></div>
+          <div class="chip">Near misses <span>${nm}</span></div>
+          <div class="chip">Focus <span>${e.focus}</span></div>
+          <div class="chip">Load <span>${e.load}</span></div>
+          <div class="chip">Med feel <span>${e.med}</span></div>
+        </div>
+      </div>`;
+    } else {
+      return `<div class="entry">
+        <div class="entry-type eod">End of Day</div>
+        <div class="entry-time">${timeStr}</div>
+        <div class="entry-chips">
+          <div class="chip">Worst moment <span>${e.worst}</span></div>
+          <div class="chip">Overall effectiveness <span>${e.overall}/10</span></div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+function exportCSV() {
+  const csv = buildCSV();
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tracker_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded');
+}
+
+function shareCSV() {
+  const csv = buildCSV();
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const file = new File([blob], 'tracker_' + new Date().toISOString().slice(0,10) + '.csv', { type: 'text/csv' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'Tracker data' }).catch(() => {});
+  } else if (navigator.share) {
+    navigator.share({ title: 'Tracker CSV', text: csv }).catch(() => {});
+  } else {
+    exportCSV();
+  }
+}
+
+function buildCSV() {
+  const header = 'type,timestamp,date,time,interval,calm_baseline,emotional_control,near_misses,focus,context_load,med_feel,worst_moment,overall_effectiveness';
+  const rows = db.map(e => {
+    const dt = new Date(e.ts);
+    const date = dt.toISOString().slice(0,10);
+    const time = dt.toTimeString().slice(0,5);
+    if (e.type === 'checkin') {
+      return [e.type, e.ts, date, time, e.interval||'', e.calm, e.econtrol, e.nearmiss, e.focus, e.load, e.med, '', ''].join(',');
+    } else if (e.type === 'missed') {
+      return [e.type, e.ts, date, time, e.interval||'', '', '', '', '', '', '', ''].join(',');
+    } else {
+      return [e.type, e.ts, date, time, '', '', '', '', '', '', e.worst, e.overall].join(',');
+    }
+  });
+  return [header, ...rows].join('\n');
+}
+
+function clearData() {
+  if (confirm('Delete all tracked data? This cannot be undone.')) {
+    db = [];
+    localStorage.removeItem('tracker_data');
+    showToast('All data cleared');
+    renderHistory();
+  }
+}
+
+// Settings
+function renderSettings() {
+  const wrap = document.getElementById('day-rows');
+  wrap.innerHTML = '';
+  settings.days.forEach((day, di) => {
+    const row = document.createElement('div');
+    row.className = 'day-row';
+    row.innerHTML = `<div class="day-name">${day.name}</div><div class="time-slots" id="slots-${di}"></div><button class="add-time-btn" onclick="addTime(${di})" title="Add time">+</button>`;
+    wrap.appendChild(row);
+    renderSlots(di);
+  });
+
+  const st = document.getElementById('notif-status');
+  if (Notification.permission === 'granted') {
+    st.textContent = '✓ Notifications enabled';
+    st.className = 'notif-status ok';
+  } else if (Notification.permission === 'denied') {
+    st.textContent = '✗ Notifications blocked — enable in browser settings';
+    st.className = 'notif-status err';
+  } else {
+    st.textContent = 'Tap the button above to enable reminders';
+    st.className = 'notif-status';
+  }
+}
+
+function renderSlots(di) {
+  const wrap = document.getElementById('slots-'+di);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  settings.days[di].times.forEach((t, ti) => {
+    const row = document.createElement('div');
+    row.className = 'time-row';
+    row.innerHTML = `<input type="time" value="${t}" onchange="settings.days[${di}].times[${ti}]=this.value"><button class="del-time-btn" onclick="removeTime(${di},${ti})" title="Remove">×</button>`;
+    wrap.appendChild(row);
+  });
+}
+
+function addTime(di) {
+  if (settings.days[di].times.length >= 4) { showToast('Max 4 reminders per day'); return; }
+  settings.days[di].times.push('09:00');
+  renderSlots(di);
+}
+
+function removeTime(di, ti) {
+  settings.days[di].times.splice(ti, 1);
+  renderSlots(di);
+}
+
+function saveSettings() {
+  localStorage.setItem('tracker_settings', JSON.stringify(settings));
+  function insertMissedCheckins() {
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0,10);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const todayJS = now.getDay();
+  const todayIdx = todayJS === 0 ? 6 : todayJS - 1;
+  const times = settings.days[todayIdx].times;
+  const total = times.length;
+
+  // Find which slots have already passed today
+  const passedSlots = times.map((t, i) => {
+    const [h, m] = t.split(':').map(Number);
+    return { index: i + 1, h, m, passed: nowMins > h * 60 + m + 5 };
+  }).filter(s => s.passed);
+
+  // Find which intervals already have a real checkin today
+  const todayCheckins = new Set(
+    db.filter(e => e.type === 'checkin' && e.ts.slice(0,10) === todayStr && e.interval)
+      .map(e => e.interval)
+  );
+  // Also find already-inserted missed entries today (avoid duplicates)
+  const todayMissed = new Set(
+    db.filter(e => e.type === 'missed' && e.ts.slice(0,10) === todayStr && e.interval)
+      .map(e => e.interval)
+  );
+
+  let added = 0;
+  passedSlots.forEach(slot => {
+    if (!todayCheckins.has(slot.index) && !todayMissed.has(slot.index)) {
+      const slotDate = new Date(now);
+      slotDate.setHours(slot.h, slot.m, 0, 0);
+      db.push({
+        type: 'missed',
+        ts: slotDate.toISOString(),
+        interval: slot.index,
+        intervalTotal: total
+      });
+      added++;
+    }
+  });
+
+  if (added > 0) localStorage.setItem('tracker_data', JSON.stringify(db));
+}
+
+insertMissedCheckins();
+scheduleNotifications();
+  showToast('Settings saved ✓');
+}
+
+async function requestNotifications() {
+  if (!('Notification' in window)) { showToast('Notifications not supported'); return; }
+  const perm = await Notification.requestPermission();
+  const st = document.getElementById('notif-status');
+  if (perm === 'granted') {
+    st.textContent = '✓ Notifications enabled';
+    st.className = 'notif-status ok';
+    scheduleNotifications();
+    showToast('Reminders enabled!');
+  } else {
+    st.textContent = '✗ Permission denied — check browser/OS settings';
+    st.className = 'notif-status err';
+  }
+}
+
+function scheduleNotifications() {
+  notifTimers.forEach(clearTimeout);
+  notifTimers = [];
+  if (Notification.permission !== 'granted') return;
+  const now = new Date();
+  const todayJS = now.getDay(); // 0=Sun
+  const todayIdx = todayJS === 0 ? 6 : todayJS - 1; // 0=Mon
+  const day = settings.days[todayIdx];
+  day.times.forEach(timeStr => {
+    const [h, m] = timeStr.split(':').map(Number);
+    const target = new Date(now);
+    target.setHours(h, m, 0, 0);
+    const diff = target - now;
+    if (diff > 0) {
+      const t = setTimeout(() => {
+        new Notification('Daily Tracker', { body: 'Time for your check-in!', icon: '' });
+      }, diff);
+      notifTimers.push(t);
+    }
+  });
+}
+
+scheduleNotifications();
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
