@@ -100,6 +100,29 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface3);color:var(--text);padding:11px 20px;border-radius:var(--radius);font-size:14px;font-weight:500;transition:transform .3s;z-index:999;pointer-events:none;border:1px solid var(--border2)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .empty{text-align:center;padding:48px 16px;color:var(--text3);font-size:14px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:14px;color:var(--text)}
+.toggle-label.locked{color:var(--text3)}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-track{position:absolute;inset:0;background:var(--surface3);border-radius:24px;transition:.2s;cursor:pointer}
+.toggle-track:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-track{background:var(--accent)}
+.toggle input:checked+.toggle-track:before{transform:translateX(20px)}
+.toggle input:disabled+.toggle-track{opacity:.5;cursor:default}
+.entry{cursor:pointer;transition:border-color .15s}
+.entry:active{border-color:var(--accent)}
+.entry-actions{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.act-btn{flex:1;padding:8px;border-radius:var(--radius-sm);border:none;font-size:13px;font-weight:500;cursor:pointer}
+.act-edit{background:var(--surface3);color:var(--accent)}
+.act-del{background:rgba(224,90,90,.15);color:var(--red)}
+.confirm-bar{background:var(--surface2);border:1px solid var(--amber);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:13px;color:var(--text)}
+.confirm-bar b{color:var(--amber)}
+.confirm-btns{display:flex;gap:8px;margin-top:10px}
+.cbtn{flex:1;padding:9px;border-radius:var(--radius-sm);border:none;font-size:13px;font-weight:500;cursor:pointer}
+.cbtn-yes{background:var(--accent);color:#fff}
+.cbtn-no{background:var(--surface3);color:var(--text2)}
 </style>
 </head>
 <body>
@@ -166,7 +189,7 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
       <div class="metric">
         <div class="metric-header"><div class="metric-name">3. Near misses</div><div class="metric-val" id="v-nearmiss">2</div></div>
         <div class="metric-desc">Times you felt close to snapping but held it together.</div>
-        <div class="slider-row"><input type="range" min="0" max="4" value="2" id="s-nearmiss" oninput="sv('nearmiss')"><button class="na-btn" id="na-btn" onclick="toggleNA()">N/A</button></div>
+        <div class="slider-row"><input type="range" min="0" max="4" value="2" id="s-nearmiss" oninput="sv('nearmiss')"><button class="na-btn" id="na-btn-nearmiss" onclick="toggleNA()">N/A</button></div>
         <div class="slider-ends"><span class="slider-end">0 — none</span><span class="slider-end">4 — many</span></div>
       </div>
       <div class="metric">
@@ -234,7 +257,10 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
     <div class="metric" style="margin-bottom:8px">
       <div class="metric-header" style="margin-bottom:6px"><div class="metric-name">8. Overall effectiveness</div><div class="metric-val" id="v-overall" style="color:var(--accent2)">5</div></div>
       <div class="metric-desc">Global judgment across parenting, work, calmness, and focus today.</div>
-      <div class="scale10" id="scale10"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="scale10" id="scale10" style="flex:1"></div>
+        <button class="na-btn" id="na-btn-overall" onclick="toggleOverallNA('s-')" style="display:none">N/A</button>
+      </div>
     </div>
 
     <button class="btn btn-teal" onclick="submitEOD()">Save end of day</button>
@@ -259,8 +285,16 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
 
 <!-- SETTINGS -->
 <div class="page" id="page-settings">
-  <div style="font-size:13px;color:var(--text3);margin-bottom:14px;margin-top:4px">Tap any time to edit. The End of Day reminder cannot be removed.</div>
-  <div id="day-rows"></div>
+  <div class="card" style="margin-top:4px">
+    <div class="card-title">N/A toggles</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:14px">Enable an N/A button next to a metric's slider. Near misses always has N/A available.</div>
+    <div id="na-toggles"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Reminder times</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:14px">Tap any time to edit. The End of Day reminder cannot be removed.</div>
+    <div id="day-rows"></div>
+  </div>
   <button class="btn btn-primary" style="margin-top:8px" onclick="saveSettings()">Save settings</button>
 </div>
 
@@ -327,7 +361,7 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
       </div>
       <div class="metric">
         <div class="metric-header"><div class="metric-name">3. Near misses</div><div class="metric-val" id="rv-nearmiss">2</div></div>
-        <div class="slider-row"><input type="range" min="0" max="4" value="2" id="rs-nearmiss" oninput="rsv('nearmiss')"><button class="na-btn" id="rna-btn" onclick="toggleRNA()">N/A</button></div>
+        <div class="slider-row"><input type="range" min="0" max="4" value="2" id="rs-nearmiss" oninput="rsv('nearmiss')"><button class="na-btn" id="rna-btn-nearmiss" onclick="toggleRNA()">N/A</button></div>
         <div class="slider-ends"><span class="slider-end">0 — none</span><span class="slider-end">4 — many</span></div>
       </div>
       <div class="metric">
@@ -356,10 +390,14 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
       </div>
       <div class="metric" style="margin-bottom:8px">
         <div class="metric-header" style="margin-bottom:6px"><div class="metric-name">8. Overall effectiveness</div><div class="metric-val" id="rv-overall" style="color:var(--accent2)">5</div></div>
-        <div class="scale10" id="retro-scale10"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="scale10" id="retro-scale10" style="flex:1"></div>
+          <button class="na-btn" id="rna-btn-overall" onclick="toggleOverallNA('rs-')" style="display:none">N/A</button>
+        </div>
       </div>
     </div>
 
+    <div id="retro-confirm" style="display:none" class="confirm-bar"></div>
     <button class="btn btn-primary" onclick="submitRetro()">Save entry</button>
   </div>
 </div>
@@ -372,6 +410,13 @@ let db       = JSON.parse(localStorage.getItem('dt_entries') || '[]');
 let ctxStore = JSON.parse(localStorage.getItem('dt_context') || '{}');
 let settings = JSON.parse(localStorage.getItem('dt_settings') || 'null');
 if (!settings) settings = { days: Array.from({length:7},(_,i)=>({ times:['12:00','15:00','18:00','22:00'], eodTime:'23:45' })) };
+// naConfig: which metrics have N/A enabled. nearmiss always true.
+const NA_KEYS = ['calm','econtrol','nearmiss','focus','load','med','worst','overall'];
+const NA_LABELS = ['1. Calm baseline','2. Emotional control','3. Near misses','4. Focus','5. Context load','6. Medication feel','7. Worst moment','8. Overall effectiveness'];
+let naConfig = JSON.parse(localStorage.getItem('dt_naconfig') || 'null');
+if (!naConfig) naConfig = { calm:false, econtrol:false, nearmiss:true, focus:false, load:false, med:false, worst:false, overall:false };
+else naConfig.nearmiss = true; // always on
+const saveNAConfig = () => localStorage.setItem('dt_naconfig', JSON.stringify(naConfig));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const todayStr = () => new Date().toISOString().slice(0,10);
@@ -456,6 +501,7 @@ function shouldShowContextForm() {
 // ── Check-in init ─────────────────────────────────────────────────────────────
 function initCheckin() {
   insertMissed();
+  applyNAConfig('s-');
   const {interval,total}=currentInterval();
   const now=new Date();
   const timeStr=now.toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -484,6 +530,7 @@ function initCheckin() {
 
 // ── EOD init ──────────────────────────────────────────────────────────────────
 function initEOD() {
+  applyNAConfig('s-');
   const now=new Date();
   document.getElementById('eod-subtitle').textContent=now.toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   const today=todayStr(); const weekend=isWeekend(today);
@@ -498,23 +545,68 @@ function initEOD() {
 }
 
 // ── Slider helpers ────────────────────────────────────────────────────────────
-function sv(key) { document.getElementById('v-'+key).textContent=document.getElementById('s-'+key).value; }
-function rsv(key) { document.getElementById('rv-'+key).textContent=document.getElementById('rs-'+key).value; }
-let naOn=false;
-function toggleNA() {
-  naOn=!naOn;
-  document.getElementById('na-btn').classList.toggle('on',naOn);
-  document.getElementById('s-nearmiss').disabled=naOn;
-  document.getElementById('v-nearmiss').textContent=naOn?'N/A':document.getElementById('s-nearmiss').value;
-  document.getElementById('v-nearmiss').className=naOn?'metric-val na':'metric-val';
+function sv(key) {
+  const el=document.getElementById('v-'+key); if(el) el.textContent=document.getElementById('s-'+key).value;
 }
-let rnaOn=false;
-function toggleRNA() {
-  rnaOn=!rnaOn;
-  document.getElementById('rna-btn').classList.toggle('on',rnaOn);
-  document.getElementById('rs-nearmiss').disabled=rnaOn;
-  document.getElementById('rv-nearmiss').textContent=rnaOn?'N/A':document.getElementById('rs-nearmiss').value;
+function rsv(key) {
+  const el=document.getElementById('rv-'+key); if(el) el.textContent=document.getElementById('rs-'+key).value;
 }
+// Generic NA toggle for any metric key (prefix 's-' for main, 'rs-' for retro)
+const naState={}, rnaState={};
+function toggleMetricNA(key, prefix) {
+  const state = prefix==='s-' ? naState : rnaState;
+  state[key] = !state[key];
+  const btn=document.getElementById((prefix==='s-'?'':'r')+'na-btn-'+key);
+  const slider=document.getElementById(prefix+key);
+  const val=document.getElementById((prefix==='s-'?'v-':'rv-')+key);
+  if(!btn||!slider||!val) return;
+  btn.classList.toggle('on', state[key]);
+  slider.disabled = state[key];
+  val.textContent = state[key] ? 'N/A' : slider.value;
+  val.className = state[key] ? 'metric-val na' : 'metric-val';
+}
+// Build a slider row, optionally with NA button
+function buildMetricRow(containerId, key, prefix, naEnabled) {
+  const naId = (prefix==='s-'?'':'r')+'na-btn-'+key;
+  const existing = document.getElementById(prefix+key); if(!existing) return;
+  const sliderRow = existing.closest('.slider-row'); if(!sliderRow) return;
+  // Remove old NA btn if present
+  const old = document.getElementById(naId); if(old) old.remove();
+  if(naEnabled) {
+    const btn=document.createElement('button');
+    btn.className='na-btn'; btn.id=naId; btn.textContent='N/A';
+    btn.onclick=()=>toggleMetricNA(key, prefix);
+    sliderRow.appendChild(btn);
+  }
+}
+function applyNAConfig(prefix) {
+  NA_KEYS.forEach(key=>{
+    if(key==='overall') {
+      // Overall uses buttons not a slider, handle separately
+      const btnId=(prefix==='s-'?'':'r')+'na-btn-overall';
+      const btn=document.getElementById(btnId);
+      if(btn) btn.style.display=naConfig.overall?'block':'none';
+      const scale=document.getElementById(prefix==='s-'?'scale10':'retro-scale10');
+      if(scale) scale.style.opacity=naState[prefix==='s-'?'overall':'overall']?'0.3':'1';
+      return;
+    }
+    buildMetricRow(null, key, prefix, naConfig[key]);
+  });
+}
+function toggleOverallNA(prefix) {
+  const key='overall';
+  const state=prefix==='s-'?naState:rnaState;
+  state[key]=!state[key];
+  const btnId=(prefix==='s-'?'':'r')+'na-btn-overall';
+  const btn=document.getElementById(btnId); if(btn) btn.classList.toggle('on',state[key]);
+  const scale=document.getElementById(prefix==='s-'?'scale10':'retro-scale10');
+  if(scale){ scale.style.opacity=state[key]?'0.3':'1'; scale.style.pointerEvents=state[key]?'none':'auto'; }
+  const val=document.getElementById(prefix==='s-'?'v-overall':'rv-overall');
+  if(val){ val.textContent=state[key]?'N/A':(prefix==='s-'?overall:retroOverall); val.className=state[key]?'metric-val na':'metric-val'; }
+}
+// Legacy: kept for compatibility; now handled by generic toggleMetricNA
+function toggleNA()  { toggleMetricNA('nearmiss','s-'); }
+function toggleRNA() { toggleMetricNA('nearmiss','rs-'); }
 
 // ── Scale 10 ──────────────────────────────────────────────────────────────────
 let overall=5, retroOverall=5;
@@ -543,17 +635,16 @@ function submitCheckin() {
     saveCtx();
   }
   const {interval,total}=currentInterval();
+  const gv=(key)=>naState[key]?null:+document.getElementById('s-'+key).value;
   db.push({ type:'checkin', ts:nowStr(), date:today, interval, intervalTotal:total,
-    calm:+document.getElementById('s-calm').value,
-    econtrol:+document.getElementById('s-econtrol').value,
-    nearmiss:naOn?null:+document.getElementById('s-nearmiss').value,
-    focus:+document.getElementById('s-focus').value,
-    load:+document.getElementById('s-load').value,
-    med:+document.getElementById('s-med').value });
+    calm:gv('calm'), econtrol:gv('econtrol'), nearmiss:gv('nearmiss'),
+    focus:gv('focus'), load:gv('load'), med:gv('med') });
   saveDB();
-  // Reset sliders
-  ['calm','econtrol','nearmiss','focus','load','med'].forEach(k=>{ document.getElementById('s-'+k).value=2; sv(k); });
-  if(naOn) toggleNA();
+  // Reset sliders and NA states
+  ['calm','econtrol','nearmiss','focus','load','med'].forEach(k=>{
+    document.getElementById('s-'+k).value=2; sv(k);
+    if(naState[k]) toggleMetricNA(k,'s-');
+  });
   showToast(`Check-in ${interval} saved ✓`);
   initCheckin();
 }
@@ -563,35 +654,65 @@ function submitEOD() {
   const today=todayStr(); const weekend=isWeekend(today);
   ctxStore[today]={ type:eodCtx.type, dose:eodCtx.dose, loc:weekend?'N/A':eodCtx.loc };
   saveCtx();
-  db.push({ type:'eod', ts:nowStr(), date:today,
-    worst:+document.getElementById('s-worst').value, overall });
+  const worstVal = naState['worst'] ? null : +document.getElementById('s-worst').value;
+  const overallVal = naState['overall'] ? null : overall;
+  db.push({ type:'eod', ts:nowStr(), date:today, worst:worstVal, overall:overallVal });
   saveDB();
   showToast('End of day saved ✓');
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
+function isDuplicate(e) {
+  if(e.type!=='checkin') return false;
+  const siblings=db.filter(x=>x.type==='checkin'&&x.date===e.date&&x.interval===e.interval);
+  return siblings.length>1;
+}
+function deleteEntry(id) {
+  const e=db.find(x=>x.id===id); if(!e) return;
+  if(!isDuplicate(e)){ showToast('Cannot delete — not a duplicate'); return; }
+  if(!confirm('Delete this duplicate entry?')) return;
+  db=db.filter(x=>x.id!==id); saveDB(); renderHistory();
+}
 function renderHistory() {
   const list=document.getElementById('history-list');
   if(!db.length){ list.innerHTML='<div class="empty">No entries yet.</div>'; return; }
   const sorted=[...db].sort((a,b)=>b.ts.localeCompare(a.ts));
+  // Assign stable ids to any entries missing them (legacy data)
+  db.forEach(e=>{ if(!e.id) e.id=Date.now()+Math.random(); });
   list.innerHTML=sorted.map(e=>{
     const dc=ctxStore[e.date];
     const ctxLine=dc?`<div class="entry-ctx">${dc.type} · ${dc.dose}${dc.loc&&dc.loc!=='N/A'?' · '+dc.loc:''}</div>`:'';
+    const dup=isDuplicate(e);
+    const actions=`<div class="entry-actions">
+      <button class="act-btn act-edit" onclick="event.stopPropagation();openRetroEdit(${e.id})">Edit</button>
+      ${dup?`<button class="act-btn act-del" onclick="event.stopPropagation();deleteEntry(${e.id})">Delete duplicate</button>`:''}
+    </div>`;
     if(e.type==='checkin') {
       const il=e.interval?` ${e.interval}/${e.intervalTotal}`:'';
-      const nm=e.nearmiss===null||e.nearmiss===undefined?'N/A':e.nearmiss;
-      return `<div class="entry"><div class="entry-head"><span class="badge ci">Check-in${il}</span><span class="entry-time">${fmtTime(e.ts)}</span></div>${ctxLine}<div class="chips">
-        <div class="chip">Calm <b>${e.calm}</b></div><div class="chip">Control <b>${e.econtrol}</b></div>
-        <div class="chip">Near misses <b>${nm}</b></div><div class="chip">Focus <b>${e.focus}</b></div>
-        <div class="chip">Load <b>${e.load}</b></div><div class="chip">Med <b>${e.med}</b></div></div></div>`;
+      const fv=(v)=>v===null||v===undefined?'N/A':v;
+      const dupBadge=dup?` <span style="color:var(--amber);font-size:11px">⚠ duplicate</span>`:'';
+      return `<div class="entry" onclick="toggleActions(this)"><div class="entry-head"><span class="badge ci">Check-in${il}</span>${dupBadge}<span class="entry-time">${fmtTime(e.ts)}</span></div>${ctxLine}<div class="chips">
+        <div class="chip">Calm <b>${fv(e.calm)}</b></div><div class="chip">Control <b>${fv(e.econtrol)}</b></div>
+        <div class="chip">Near misses <b>${fv(e.nearmiss)}</b></div><div class="chip">Focus <b>${fv(e.focus)}</b></div>
+        <div class="chip">Load <b>${fv(e.load)}</b></div><div class="chip">Med <b>${fv(e.med)}</b></div></div>${actions}</div>`;
     } else if(e.type==='eod') {
-      return `<div class="entry"><div class="entry-head"><span class="badge eod">End of Day</span><span class="entry-time">${fmtTime(e.ts)}</span></div>${ctxLine}<div class="chips">
-        <div class="chip">Worst moment <b>${e.worst}</b></div><div class="chip">Overall <b>${e.overall}/10</b></div></div></div>`;
+      const fv2=(v,suf='')=>v===null||v===undefined?'N/A':(v+suf);
+      return `<div class="entry" onclick="toggleActions(this)"><div class="entry-head"><span class="badge eod">End of Day</span><span class="entry-time">${fmtTime(e.ts)}</span></div>${ctxLine}<div class="chips">
+        <div class="chip">Worst moment <b>${fv2(e.worst)}</b></div><div class="chip">Overall <b>${fv2(e.overall,'/10')}</b></div></div>${actions}</div>`;
     } else {
       const il=e.interval?` ${e.interval}/${e.intervalTotal}`:'';
       return `<div class="entry"><div class="entry-head"><span class="badge miss">Missed${il}</span><span class="entry-time">Scheduled ${fmtTime(e.ts)}</span></div>${ctxLine}</div>`;
     }
   }).join('');
+  // Hide all action bars initially
+  document.querySelectorAll('.entry-actions').forEach(a=>a.style.display='none');
+}
+function toggleActions(el) {
+  const bar=el.querySelector('.entry-actions'); if(!bar) return;
+  const shown=bar.style.display!=='none';
+  // Collapse all others
+  document.querySelectorAll('.entry-actions').forEach(a=>a.style.display='none');
+  if(!shown) bar.style.display='flex';
 }
 
 // ── CSV ───────────────────────────────────────────────────────────────────────
@@ -623,7 +744,7 @@ function shareCSV() {
 }
 
 // ── Retro entry ───────────────────────────────────────────────────────────────
-let retroType='checkin';
+let retroType='checkin', retroEditId=null, retroEditMode=false;
 function openRetro() {
   const yesterday=new Date(); yesterday.setDate(yesterday.getDate()-1);
   document.getElementById('retro-date').value=yesterday.toISOString().slice(0,10);
@@ -633,9 +754,52 @@ function openRetro() {
   document.getElementById('retro-ci-fields').style.display='block';
   document.getElementById('retro-eod-fields').style.display='none';
   document.getElementById('retro-interval-row').style.display='block';
+  applyNAConfig('rs-');
   document.getElementById('retro-modal').classList.add('open');
 }
-function closeRetro() { document.getElementById('retro-modal').classList.remove('open'); }
+function closeRetro() {
+  document.getElementById('retro-modal').classList.remove('open');
+  retroEditMode=false; retroEditId=null;
+  document.getElementById('retro-confirm').style.display='none';
+}
+function openRetroEdit(id) {
+  const e=db.find(x=>x.id===id); if(!e) return;
+  retroEditId=id; retroEditMode=true;
+  document.getElementById('retro-date').value=e.date;
+  updateRetroIntervalOptions();
+  updateRetroContextFromDate();
+  if(e.type==='checkin') {
+    setRetroType('checkin');
+    document.getElementById('retro-interval').value=e.interval||1;
+    ['calm','econtrol','nearmiss','focus','load','med'].forEach(k=>{
+      const key=k==='econtrol'?'econtrol':k==='nearmiss'?'nearmiss':k;
+      const dbKey=k==='econtrol'?'econtrol':k==='nearmiss'?'nearmiss':k==='load'?'load':k==='med'?'med':k;
+      const val=e[dbKey==='econtrol'?'econtrol':dbKey==='nearmiss'?'nearmiss':dbKey];
+      if(k==='nearmiss'&&(val===null||val===undefined)) {
+        if(!rnaOn) toggleRNA();
+      } else {
+        if(rnaOn) toggleRNA();
+        document.getElementById('rs-'+k).value=val||0; rsv(k);
+      }
+    });
+    // map field names
+    document.getElementById('rs-calm').value=e.calm||0; rsv('calm');
+    document.getElementById('rs-econtrol').value=e.econtrol||0; rsv('econtrol');
+    document.getElementById('rs-focus').value=e.focus||0; rsv('focus');
+    document.getElementById('rs-load').value=e.load||0; rsv('load');
+    document.getElementById('rs-med').value=e.med||0; rsv('med');
+    if(e.nearmiss===null||e.nearmiss===undefined) { if(!rnaOn) toggleRNA(); }
+    else { if(rnaOn) toggleRNA(); document.getElementById('rs-nearmiss').value=e.nearmiss; rsv('nearmiss'); }
+  } else {
+    setRetroType('eod');
+    document.getElementById('rs-worst').value=e.worst||0;
+    document.getElementById('rv-worst').textContent=e.worst||0;
+    retroOverall=e.overall||5;
+    document.getElementById('rv-overall').textContent=retroOverall;
+    document.getElementById('retro-scale10').querySelectorAll('.s10').forEach((b,i)=>b.classList.toggle('sel',i===retroOverall));
+  }
+  document.getElementById('retro-modal').classList.add('open');
+}
 function setRetroType(t) {
   retroType=t;
   sel('rt-ci',t==='checkin'); sel('rt-eod',t==='eod');
@@ -676,32 +840,67 @@ function submitRetro() {
     const dayIdx=dayIdxForDate(dateStr);
     const sched=settings.days[dayIdx];
     const total=sched.times.length;
-    // Remove matching missed placeholder
-    const before=db.length;
+
+    // Check for existing real check-in for this slot (not editing it)
+    const existing=db.find(e=>e.type==='checkin'&&e.date===dateStr&&e.interval===interval&&e.id!==retroEditId);
+    if(existing && !retroEditMode) {
+      // Show confirm bar in modal
+      showRetroConfirm(dateStr, interval, total, sched);
+      return;
+    }
+
+    // Remove the entry being replaced (either confirmed overwrite or edit)
     db=db.filter(e=>!(e.date===dateStr&&e.type==='missed'&&e.interval===interval));
+    if(retroEditMode && retroEditId!=null) db=db.filter(e=>e.id!==retroEditId);
+    else if(existing) db=db.filter(e=>!(e.type==='checkin'&&e.date===dateStr&&e.interval===interval));
+
     const t=sched.times[interval-1];
     const ts=new Date(dateStr+'T'+(t?`${String(t.split(':')[0]).padStart(2,'0')}:${String(t.split(':')[1]).padStart(2,'0')}`:'12:00')+':00').toISOString();
-    db.push({ type:'checkin', ts, date:dateStr, interval, intervalTotal:total,
-      calm:+document.getElementById('rs-calm').value,
-      econtrol:+document.getElementById('rs-econtrol').value,
-      nearmiss:rnaOn?null:+document.getElementById('rs-nearmiss').value,
-      focus:+document.getElementById('rs-focus').value,
-      load:+document.getElementById('rs-load').value,
-      med:+document.getElementById('rs-med').value });
+    const rgv=(key)=>rnaState[key]?null:+document.getElementById('rs-'+key).value;
+    db.push({ id:retroEditId||Date.now(), type:'checkin', ts, date:dateStr, interval, intervalTotal:total,
+      calm:rgv('calm'), econtrol:rgv('econtrol'), nearmiss:rgv('nearmiss'),
+      focus:rgv('focus'), load:rgv('load'), med:rgv('med') });
   } else {
-    // Replace any existing EOD for that date
     db=db.filter(e=>!(e.date===dateStr&&e.type==='eod'));
     const ts=new Date(dateStr+'T23:45:00').toISOString();
-    db.push({ type:'eod', ts, date:dateStr, worst:+document.getElementById('rs-worst').value, overall:retroOverall });
+    const rWorst = rnaState['worst'] ? null : +document.getElementById('rs-worst').value;
+    const rOverall = rnaState['overall'] ? null : retroOverall;
+    db.push({ id:retroEditId||Date.now(), type:'eod', ts, date:dateStr, worst:rWorst, overall:rOverall });
   }
+  retroEditMode=false; retroEditId=null;
   saveDB();
-  showToast('Past entry saved ✓');
+  showToast(retroEditMode?'Entry updated ✓':'Past entry saved ✓');
   closeRetro();
   renderHistory();
 }
 
+function showRetroConfirm(dateStr, interval, total, sched) {
+  const bar=document.getElementById('retro-confirm');
+  bar.style.display='block';
+  bar.innerHTML=`<b>Check-in ${interval} of ${total} already exists for ${dateStr}.</b><br>Do you want to overwrite it with these values?
+    <div class="confirm-btns">
+      <button class="cbtn cbtn-yes" onclick="confirmOverwrite('${dateStr}',${interval})">Yes, overwrite</button>
+      <button class="cbtn cbtn-no" onclick="document.getElementById('retro-confirm').style.display='none'">Cancel</button>
+    </div>`;
+}
+function confirmOverwrite(dateStr, interval) {
+  retroEditMode=true;
+  document.getElementById('retro-confirm').style.display='none';
+  submitRetro();
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 function renderSettings() {
+  // NA toggles
+  const naWrap=document.getElementById('na-toggles'); naWrap.innerHTML='';
+  NA_KEYS.forEach(key=>{
+    const locked=key==='nearmiss';
+    const row=document.createElement('div'); row.className='toggle-row';
+    row.innerHTML=`<span class="toggle-label${locked?' locked':''}">${NA_LABELS[NA_KEYS.indexOf(key)]}${locked?' (always on)':''}</span>
+      <label class="toggle"><input type="checkbox" ${naConfig[key]?'checked':''} ${locked?'disabled':''} onchange="naConfig['${key}']=this.checked"><span class="toggle-track"></span></label>`;
+    naWrap.appendChild(row);
+  });
+  // Day schedule
   const DAY=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const wrap=document.getElementById('day-rows'); wrap.innerHTML='';
   settings.days.forEach((day,di)=>{
@@ -724,7 +923,7 @@ function addTime(di) {
   settings.days[di].times.push('09:00'); renderSlots(di);
 }
 function removeTime(di,ti) { settings.days[di].times.splice(ti,1); renderSlots(di); }
-function saveSettings() { saveSett(); showToast('Settings saved ✓'); }
+function saveSettings() { saveSett(); saveNAConfig(); showToast('Settings saved ✓'); initCheckin(); initEOD(); }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function showToast(msg) {
