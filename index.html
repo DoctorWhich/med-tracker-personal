@@ -76,16 +76,7 @@ input[type=range]:disabled{opacity:.3}
 .chip{font-size:12px;padding:2px 8px;background:var(--surface2);border-radius:20px;color:var(--text2)}
 .chip b{color:var(--text)}
 /* Settings */
-.day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px}
-.day-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.day-name{font-size:14px;font-weight:600}
-.add-btn{background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);padding:3px 10px;font-size:18px;cursor:pointer;line-height:1.4}
-.time-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
-input[type=time]{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:5px 8px;font-size:13px;outline:none}
-input[type=time]:focus{border-color:var(--accent)}
-.del-btn{background:none;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text3);padding:3px 8px;font-size:15px;cursor:pointer}
-.eod-row{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
-.eod-label{font-size:12px;color:var(--accent2);font-weight:500;flex:1}
+
 /* Retro modal */
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;overflow-y:auto}
 .modal-bg.open{display:block}
@@ -290,11 +281,6 @@ input[type=date]{width:100%;background:var(--surface2);border:1px solid var(--bo
     <div style="font-size:13px;color:var(--text3);margin-bottom:14px">Enable an N/A button next to a metric's slider. Near misses always has N/A available.</div>
     <div id="na-toggles"></div>
   </div>
-  <div class="card">
-    <div class="card-title">Reminder times</div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:14px">Tap any time to edit. The End of Day reminder cannot be removed.</div>
-    <div id="day-rows"></div>
-  </div>
   <button class="btn btn-primary" style="margin-top:8px" onclick="saveSettings()">Save settings</button>
 </div>
 
@@ -443,13 +429,18 @@ function currentInterval() {
 function insertMissed() {
   const today=todayStr(), now=new Date(), nowM=now.getHours()*60+now.getMinutes();
   const sched=settings.days[todayDayIdx()];
-  const done=new Set(db.filter(e=>e.date===today&&(e.type==='checkin'||e.type==='missed')&&e.interval).map(e=>e.interval));
+  // Any slot covered by a real check-in OR an existing missed placeholder
+  const covered=new Set(
+    db.filter(e=>e.date===today&&(e.type==='checkin'||e.type==='missed')&&e.interval!=null)
+      .map(e=>e.interval)
+  );
   let added=false;
   sched.times.forEach((t,i)=>{
     const [h,m]=t.split(':').map(Number);
-    if(nowM>h*60+m+5 && !(i+1 in [...done]||done.has(i+1))) {
-      const slotTs=new Date(); slotTs.setHours(h,m,0,0);
+    if(nowM>h*60+m+5 && !covered.has(i+1)) {
+      const slotTs=new Date(now); slotTs.setHours(h,m,0,0);
       db.push({type:'missed',ts:slotTs.toISOString(),date:today,interval:i+1,intervalTotal:sched.times.length});
+      covered.add(i+1);
       added=true;
     }
   });
@@ -635,6 +626,8 @@ function submitCheckin() {
     saveCtx();
   }
   const {interval,total}=currentInterval();
+  // Remove missed placeholder for this slot if it exists
+  db=db.filter(e=>!(e.date===today&&e.type==='missed'&&e.interval===interval));
   const gv=(key)=>naState[key]?null:+document.getElementById('s-'+key).value;
   db.push({ type:'checkin', ts:nowStr(), date:today, interval, intervalTotal:total,
     calm:gv('calm'), econtrol:gv('econtrol'), nearmiss:gv('nearmiss'),
@@ -900,29 +893,7 @@ function renderSettings() {
       <label class="toggle"><input type="checkbox" ${naConfig[key]?'checked':''} ${locked?'disabled':''} onchange="naConfig['${key}']=this.checked"><span class="toggle-track"></span></label>`;
     naWrap.appendChild(row);
   });
-  // Day schedule
-  const DAY=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const wrap=document.getElementById('day-rows'); wrap.innerHTML='';
-  settings.days.forEach((day,di)=>{
-    const card=document.createElement('div'); card.className='day-card';
-    card.innerHTML=`<div class="day-head"><span class="day-name">${DAY[di]}</span><button class="add-btn" onclick="addTime(${di})">+</button></div><div id="slots-${di}"></div><div class="eod-row"><span class="eod-label">End of Day</span><input type="time" value="${day.eodTime||'23:45'}" onchange="settings.days[${di}].eodTime=this.value" style="border-color:var(--accent2)"></div>`;
-    wrap.appendChild(card);
-    renderSlots(di);
-  });
 }
-function renderSlots(di) {
-  const wrap=document.getElementById('slots-'+di); wrap.innerHTML='';
-  settings.days[di].times.forEach((t,ti)=>{
-    const row=document.createElement('div'); row.className='time-row';
-    row.innerHTML=`<input type="time" value="${t}" onchange="settings.days[${di}].times[${ti}]=this.value"><button class="del-btn" onclick="removeTime(${di},${ti})">×</button>`;
-    wrap.appendChild(row);
-  });
-}
-function addTime(di) {
-  if(settings.days[di].times.length>=4){ showToast('Max 4 reminders per day'); return; }
-  settings.days[di].times.push('09:00'); renderSlots(di);
-}
-function removeTime(di,ti) { settings.days[di].times.splice(ti,1); renderSlots(di); }
 function saveSettings() { saveSett(); saveNAConfig(); showToast('Settings saved ✓'); initCheckin(); initEOD(); }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
